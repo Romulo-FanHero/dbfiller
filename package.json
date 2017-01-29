@@ -1,7 +1,7 @@
 {
   "name": "dbfiller",
   "version": "1.0.0",
-  "description": "",
+  "description": "a sample postgres database filler",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -19,6 +19,7 @@
   "dependencies": {
     "bluebird": "^3.4.7",
     "collections": "^5.0.6",
+    "faker": "^3.1.0",
     "lodash": "^4.17.4",
     "pg": "^6.1.2",
     "squel": "^5.6.0"
