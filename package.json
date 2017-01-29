@@ -15,5 +15,12 @@
   "bugs": {
     "url": "https://github.com/Romulo-FanHero/dbfiller/issues"
   },
-  "homepage": "https://github.com/Romulo-FanHero/dbfiller#readme"
+  "homepage": "https://github.com/Romulo-FanHero/dbfiller#readme",
+  "dependencies": {
+    "bluebird": "^3.4.7",
+    "collections": "^5.0.6",
+    "lodash": "^4.17.4",
+    "pg": "^6.1.2",
+    "squel": "^5.6.0"
+  }
 }
