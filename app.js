@@ -102,6 +102,7 @@ const main = () => {
 
     return clearAll()
 
+        // PREENCHE USUARIOS
         .then(result => {
             var len = maxUsers, users = [];
             while (len--) { users.push(geraUsuario()); }
@@ -109,6 +110,7 @@ const main = () => {
             return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
         })
 
+        // PREENCHE ENDERECOS DE USUARIOS
         .then(() => {
             console.log(`${maxUsers} usuarios escritos com sucesso`);
             var len = maxUsers * addrPerUser, addrList = [];
@@ -117,8 +119,9 @@ const main = () => {
             return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
         })
 
+        // PREENCHE RELACIONAMENTO USUARIOS X ENDERECOS
         .then(() => {
-            console.log(`${maxUsers * addrPerUser} enderecos escritos com sucesso`);
+            console.log(`${maxUsers * addrPerUser} enderecos de usuarios escritos com sucesso`);
             var outList = [], endereco_id = 1;
             for (var i = 1, ilen = addrPerUser; i <= ilen; i++) {
                 for (var j = 1, jlen = maxUsers; j <= jlen; j++) {
@@ -136,6 +139,7 @@ const main = () => {
             return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
         })
 
+        // PREENCHE FUNCIONARIOS
         .then(() => {
             console.log(`${maxUsers * addrPerUser} usuarios x enderecos escritos com sucesso`);
             var len = maxStaff, outList = [];
@@ -144,8 +148,38 @@ const main = () => {
             return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
         })
 
+        // PREENCHE ENDERECOS DE FUNCIONARIOS
         .then(() => {
             console.log(`${maxStaff} funcionarios escritos com sucesso`);
+            var len = maxStaff * addrPerStaff, addrList = [];
+            while (len--) { addrList.push(geraEndereco()); }
+            const qry = squel.insert().into(`${nspc}.endereco`).setFieldsRows(addrList);
+            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+        })
+
+        // PREENCHE RELACIONAMENTO FUNCIONARIOS X ENDERECOS
+        .then(() => {
+            console.log(`${maxStaff * addrPerStaff} enderecos de funcionarios escritos com sucesso`);
+            var outList = [], endereco_id = maxUsers * addrPerUser + 1;
+            for (var i = 1, ilen = addrPerStaff; i <= ilen; i++) {
+                for (var j = 1, jlen = maxStaff; j <= jlen; j++) {
+                    outList.push({
+                        usuario_id: null,
+                        funcionario_id: j,
+                        estacao_id: null,
+                        tipo_endereco_id: 1,
+                        endereco_id: endereco_id
+                    });
+                    endereco_id++;
+                }
+            }
+            const qry = squel.insert().into(`${nspc}.lista_endereco`).setFieldsRows(outList);
+            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+        })
+
+
+        .then(() => {
+            console.log(`${maxStaff * addrPerStaff} funcionarios x enderecos escritos com sucesso`);
             process.exit();
         })
         .catch(err => {
