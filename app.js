@@ -1,6 +1,7 @@
 // APP.JS
 
 const _ = require('lodash');
+const faker = require('faker');
 const promise = require('bluebird');
 const squel = require('squel').useFlavour('postgres');
 const pool = new (require('pg').Pool)({
@@ -16,6 +17,11 @@ const pool = new (require('pg').Pool)({
 });
 
 const nspc = 'cadastro';
+
+const minDate = new Date('2014-01-01');
+const maxDate = new Date('2017-01-01');
+
+const maxUsers = 100000;
 
 // Error handler required for pg clients that eventually inside the `pg.Pool`
 // if the connection to the `pg.Server` is reconfigured
@@ -38,6 +44,11 @@ const simpleQuery2 = function simpleQuery2(qry) {
         });
 };
 
+const escQuotes = function escQuotes(str) {
+    if (!str) return null;
+    return str.replace(/'/g, `''`);
+};
+
 const clearAll = () => {
     return simpleQuery2(`
         TRUNCATE TABLE
@@ -52,10 +63,25 @@ const clearAll = () => {
     `);
 };
 
+const createUser = () => {
+    return {
+        nome: escQuotes(faker.name.firstName()),
+        sobrenome: escQuotes(faker.name.lastName()),
+        email: faker.internet.email(),
+        data_insercao: faker.date.between(minDate, maxDate).toISOString()
+    };
+};
+
 const main = () => {
     return clearAll()
         .then(result => {
-            console.log(JSON.stringify(result, null, 2));
+            var len = maxUsers, users = [];
+            while (len--) { users.push(createUser()); }
+            const qry = squel.insert().into(`${nspc}.usuario`).setFieldsRows(users);
+            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+        })
+        .then(() => {
+            console.log(`${maxUsers} usuarios escritos com sucesso`);
         })
         .catch(err => {
             console.error(err);
