@@ -21,7 +21,8 @@ const nspc = 'cadastro';
 const minDate = new Date('2014-01-01');
 const maxDate = new Date('2017-01-01');
 
-const maxUsers = 100000;
+const maxUsers = 10000;
+const addrPerUser = 3;
 
 // Error handler required for pg clients that eventually inside the `pg.Pool`
 // if the connection to the `pg.Server` is reconfigured
@@ -63,7 +64,7 @@ const clearAll = () => {
     `);
 };
 
-const createUser = () => {
+const geraUsuario = () => {
     return {
         nome: escQuotes(faker.name.firstName()),
         sobrenome: escQuotes(faker.name.lastName()),
@@ -72,16 +73,35 @@ const createUser = () => {
     };
 };
 
+const geraEndereco = () => {
+    return {
+        rotulo: escQuotes(faker.lorem.sentence()),
+        logradouro: escQuotes(faker.address.streetAddress()),
+        complemento: escQuotes(faker.address.secondaryAddress()),
+        municipio: escQuotes(faker.address.city()),
+        estado: escQuotes(faker.address.stateAbbr()),
+        cep: faker.address.zipCode('#####')
+    };
+};
+
 const main = () => {
     return clearAll()
         .then(result => {
             var len = maxUsers, users = [];
-            while (len--) { users.push(createUser()); }
+            while (len--) { users.push(geraUsuario()); }
             const qry = squel.insert().into(`${nspc}.usuario`).setFieldsRows(users);
             return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
         })
         .then(() => {
             console.log(`${maxUsers} usuarios escritos com sucesso`);
+            var len = maxUsers * addrPerUser, addrList = [];
+            while (len--) { addrList.push(geraEndereco()); }
+            const qry = squel.insert().into(`${nspc}.endereco`).setFieldsRows(addrList);
+            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+        })
+        .then(() => {
+            console.log(`${maxUsers * addrPerUser} enderecos escritos com sucesso`);
+            process.exit();
         })
         .catch(err => {
             console.error(err);
