@@ -21,7 +21,7 @@ const nspc = 'cadastro';
 const userMinDate = new Date('2014-01-01');
 const userMaxDate = new Date(Date.now());
 
-const maxUsers = 200000;
+const maxUsers = 1000000;
 const addrPerUser = 4;
 
 const maxStaff = maxUsers / 10;
@@ -39,11 +39,24 @@ const managersPerStation = 2;
 const maxManagers = maxStations * 2;
 const managersPerStaff = maxStaff / maxManagers;
 
+const chunkSize = 5000;
+
 // Error handler required for pg clients that eventually inside the `pg.Pool`
 // if the connection to the `pg.Server` is reconfigured
 pool.on('error', err => {
     console.error(err);
 });
+
+// Generate an evenly spaced numeric array from `0` to `max`, in increments of
+// size `inc`
+const evenlyChunks = function evenlyChunks(inc, max) {
+    var s = [], c = 0;
+    while (c < max) {
+        s.push(c);
+        c += inc;
+    }
+    return s;
+};
 
 // Minimalist function for executing postgres queries w/o error handling.
 const simpleQuery2 = function simpleQuery2(qry) {
@@ -58,6 +71,18 @@ const simpleQuery2 = function simpleQuery2(qry) {
             if (!result || !result.rows) return [];
             return result.rows;
         });
+};
+
+const writeAll = (rows, table) => {
+    return promise.map(
+        evenlyChunks(chunkSize, rows.length),
+        offset => {
+            return simpleQuery2(`${squel.insert().into(`${nspc}.${table}`).setFieldsRows(rows.slice(offset, offset + chunkSize))} ON CONFLICT DO NOTHING`)
+                .then(() => { console.log(`\t\t[${nspc}.${table}] chunk OK ${new Date(Date.now()).toISOString().slice(11, 22)}`); })
+                .catch(err => { console.error(err); });
+        },
+        { concurrency: 10 }
+    );
 };
 
 const escQuotes = function escQuotes(str) {
@@ -122,19 +147,17 @@ const main = () => {
 
         // PREENCHE USUARIOS
         .then(result => {
-            var len = maxUsers, users = [];
-            while (len--) { users.push(geraUsuario()); }
-            const qry = squel.insert().into(`${nspc}.usuario`).setFieldsRows(users);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            var len = maxUsers, outList = [];
+            while (len--) { outList.push(geraUsuario()); }
+            return writeAll(outList, 'usuario');
         })
 
         // PREENCHE ENDERECOS DE USUARIOS
         .then(() => {
             console.log(`${maxUsers} usuarios escritos com sucesso`);
-            var len = maxUsers * addrPerUser, addrList = [];
-            while (len--) { addrList.push(geraEndereco()); }
-            const qry = squel.insert().into(`${nspc}.endereco`).setFieldsRows(addrList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            var len = maxUsers * addrPerUser, outList = [];
+            while (len--) { outList.push(geraEndereco()); }
+            return writeAll(outList, 'endereco');
         })
 
         // PREENCHE RELACIONAMENTO USUARIOS X ENDERECOS
@@ -153,8 +176,7 @@ const main = () => {
                     endereco_id++;
                 }
             }
-            const qry = squel.insert().into(`${nspc}.lista_endereco`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'lista_endereco');
         })
 
         // PREENCHE FUNCIONARIOS
@@ -162,17 +184,15 @@ const main = () => {
             console.log(`${maxUsers * addrPerUser} usuarios x enderecos escritos com sucesso`);
             var len = maxStaff, outList = [];
             while (len--) { outList.push(geraFuncionario()); }
-            const qry = squel.insert().into(`${nspc}.funcionario`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'funcionario');
         })
 
         // PREENCHE ENDERECOS DE FUNCIONARIOS
         .then(() => {
             console.log(`${maxStaff} funcionarios escritos com sucesso`);
-            var len = maxStaff * addrPerStaff, addrList = [];
-            while (len--) { addrList.push(geraEndereco()); }
-            const qry = squel.insert().into(`${nspc}.endereco`).setFieldsRows(addrList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            var len = maxStaff * addrPerStaff, outList = [];
+            while (len--) { outList.push(geraEndereco()); }
+            return writeAll(outList, 'endereco');
         })
 
         // PREENCHE RELACIONAMENTO FUNCIONARIOS X ENDERECOS
@@ -191,8 +211,7 @@ const main = () => {
                     endereco_id++;
                 }
             }
-            const qry = squel.insert().into(`${nspc}.lista_endereco`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'lista_endereco');
         })
 
         // PREENCHE ESTACOES
@@ -200,17 +219,15 @@ const main = () => {
             console.log(`${maxStaff * addrPerStaff} funcionarios x enderecos escritos com sucesso`);
             var len = maxStations, outList = [];
             while (len--) { outList.push(geraEstacao()); }
-            const qry = squel.insert().into(`${nspc}.estacao`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'estacao');
         })
 
         // PREENCHE ENDERECOS DE ESTACOES
         .then(() => {
             console.log(`${maxStations} estacoes escritas com sucesso`);
-            var len = (maxStations * addrPerStation), addrList = [];
-            while (len--) { addrList.push(geraEndereco()); }
-            const qry = squel.insert().into(`${nspc}.endereco`).setFieldsRows(addrList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            var len = (maxStations * addrPerStation), outList = [];
+            while (len--) { outList.push(geraEndereco()); }
+            return writeAll(outList, 'endereco');
         })
 
         // PREENCHE RELACIONAMENTO ESTACOES X ENDERECOS
@@ -229,8 +246,7 @@ const main = () => {
                     endereco_id++;
                 }
             }
-            const qry = squel.insert().into(`${nspc}.lista_endereco`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'lista_endereco');
         })
 
         // PREENCHE RELACIONAMENTO FUNCIONARIOS X ESTACOES
@@ -245,8 +261,7 @@ const main = () => {
                 estacao_id++;
                 if (estacao_id > maxStations) estacao_id = 1;
             }
-            const qry = squel.insert().into(`${nspc}.lista_alocacao`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'lista_alocacao');
         })
 
         // PREENCHE RELACIONAMENTO FUNCIONARIOS GERENTES X ESTACOES
@@ -261,8 +276,7 @@ const main = () => {
                 estacao_id++;
                 if (estacao_id > maxStations) estacao_id = 1;
             }
-            const qry = squel.insert().into(`${nspc}.lista_gerencia`).setFieldsRows(outList);
-            return simpleQuery2(`${qry} ON CONFLICT DO NOTHING`);
+            return writeAll(outList, 'lista_gerencia');
         })
 
         .then(() => {
